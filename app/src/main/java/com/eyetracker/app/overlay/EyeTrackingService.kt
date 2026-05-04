@@ -3,7 +3,6 @@ package com.eyetracker.app.overlay
 import android.app.*
 import android.content.Intent
 import android.graphics.PixelFormat
-import android.os.IBinder
 import android.util.DisplayMetrics
 import android.view.*
 import androidx.camera.core.*
@@ -110,6 +109,4 @@ class EyeTrackingService : LifecycleService() {
         cursorView?.let { windowManager?.removeView(it) }
         cameraExecutor.shutdown()
     }
-
-    override fun onBind(intent: Intent): IBinder? = super.onBind(intent)
 }
