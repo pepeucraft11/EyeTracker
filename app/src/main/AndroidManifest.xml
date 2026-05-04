@@ -5,9 +5,6 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
-    <uses-permission android:name="android.permission.ACTION_MANAGE_OVERLAY_PERMISSION" />
-
-    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -27,21 +24,26 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".ui.CalibrationActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
-
-        <activity
-            android:name=".ui.DemoActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
+        <activity android:name=".ui.CalibrationActivity" android:exported="false" />
+        <activity android:name=".ui.DemoActivity" android:exported="false" />
 
         <service
             android:name=".overlay.EyeTrackingService"
             android:exported="false"
             android:foregroundServiceType="camera" />
 
-    </application>
+        <service
+            android:name=".accessibility.EyeAccessibilityService"
+            android:exported="true"
+            android:label="Eye Tracker Click"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
 
+    </application>
 </manifest>
