@@ -3,18 +3,19 @@ package com.eyetracker.app.overlay
 import android.app.*
 import android.content.Intent
 import android.graphics.PixelFormat
+import android.os.IBinder
 import android.util.DisplayMetrics
 import android.view.*
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.*
 import com.eyetracker.app.ml.EyeTrackingAnalyzer
 import com.eyetracker.app.ui.MainActivity
 import java.util.concurrent.Executors
 
-class EyeTrackingService : LifecycleService() {
+class EyeTrackingService : Service(), LifecycleOwner {
 
     companion object {
         var isRunning = false
@@ -22,18 +23,24 @@ class EyeTrackingService : LifecycleService() {
         private const val NOTIF_ID = 1
     }
 
+    private val lifecycleRegistry = LifecycleRegistry(this)
+    override val lifecycle: Lifecycle get() = lifecycleRegistry
+
     private var windowManager: WindowManager? = null
     private var cursorView: View? = null
     private val cameraExecutor = Executors.newSingleThreadExecutor()
 
     override fun onCreate() {
         super.onCreate()
+        lifecycleRegistry.currentState = Lifecycle.State.STARTED
         isRunning = true
         createNotificationChannel()
         startForeground(NOTIF_ID, buildNotification())
         setupOverlayCursor()
         startCamera()
     }
+
+    override fun onBind(intent: Intent): IBinder? = null
 
     private fun setupOverlayCursor() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
@@ -105,6 +112,7 @@ class EyeTrackingService : LifecycleService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         isRunning = false
         cursorView?.let { windowManager?.removeView(it) }
         cameraExecutor.shutdown()
