@@ -23,8 +23,8 @@ class EyeTrackingService : LifecycleService() {
         private const val NOTIF_ID = 1
     }
 
-    private lateinit var windowManager: WindowManager
-    private lateinit var cursorView: View
+    private var windowManager: WindowManager? = null
+    private var cursorView: View? = null
     private val cameraExecutor = Executors.newSingleThreadExecutor()
 
     override fun onCreate() {
@@ -38,7 +38,7 @@ class EyeTrackingService : LifecycleService() {
 
     private fun setupOverlayCursor() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        val metrics = DisplayMetrics().also { windowManager.defaultDisplay.getMetrics(it) }
+        val metrics = DisplayMetrics().also { windowManager!!.defaultDisplay.getMetrics(it) }
         cursorView = View(this).apply { setBackgroundColor(0x554FC3F7.toInt()) }
         val params = WindowManager.LayoutParams(
             80, 80,
@@ -51,7 +51,7 @@ class EyeTrackingService : LifecycleService() {
             x = metrics.widthPixels / 2
             y = metrics.heightPixels / 2
         }
-        windowManager.addView(cursorView, params)
+        windowManager!!.addView(cursorView, params)
     }
 
     private fun startCamera() {
@@ -64,12 +64,12 @@ class EyeTrackingService : LifecycleService() {
             screenWidth = sw,
             screenHeight = sh,
             onGazeDetected = { data ->
-                val params = cursorView.layoutParams as WindowManager.LayoutParams
+                val cv = cursorView ?: return@EyeTrackingAnalyzer
+                val wm2 = windowManager ?: return@EyeTrackingAnalyzer
+                val params = cv.layoutParams as WindowManager.LayoutParams
                 params.x = (data.gazePoint.x * sw - 40f).toInt()
                 params.y = (data.gazePoint.y * sh - 40f).toInt()
-                android.os.Handler(mainLooper).post {
-                    windowManager.updateViewLayout(cursorView, params)
-                }
+                android.os.Handler(mainLooper).post { wm2.updateViewLayout(cv, params) }
             },
             onNoFace = {}
         )
@@ -90,7 +90,7 @@ class EyeTrackingService : LifecycleService() {
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Eye Tracking Active")
-            .setContentText("Gaze cursor is visible over all apps")
+            .setContentText("Gaze cursor visible over all apps")
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setContentIntent(intent)
             .setOngoing(true)
@@ -107,8 +107,9 @@ class EyeTrackingService : LifecycleService() {
     override fun onDestroy() {
         super.onDestroy()
         isRunning = false
-        if (::cursorView.isInitialized && ::windowManager.isInitialized)
-            windowManager.removeView(cursorView)
+        cursorView?.let { windowManager?.removeView(it) }
         cameraExecutor.shutdown()
     }
+
+    override fun onBind(intent: Intent): IBinder? = super.onBind(intent)
 }
