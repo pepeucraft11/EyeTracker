@@ -54,9 +54,9 @@ class EyeTrackingAnalyzer(
     private var wasBlinking = false
     private var blinkStartTime = 0L
     private var lastBlinkTime = 0L
-    private val MIN_BLINK_MS = 80L
-    private val MAX_BLINK_MS = 400L
-    private val BLINK_COOLDOWN_MS = 600L
+    private val MIN_BLINK_MS = 50L
+    private val MAX_BLINK_MS = 600L
+    private val BLINK_COOLDOWN_MS = 400L
 
     override fun analyze(imageProxy: ImageProxy) {
         val mediaImage = imageProxy.image ?: run { imageProxy.close(); return }
@@ -73,7 +73,7 @@ class EyeTrackingAnalyzer(
     private fun processFace(face: Face, imageWidth: Float, imageHeight: Float) {
         val leftEyeOpen = face.leftEyeOpenProbability ?: 1f
         val rightEyeOpen = face.rightEyeOpenProbability ?: 1f
-        val isBlinking = leftEyeOpen < 0.3f && rightEyeOpen < 0.3f
+        val isBlinking = leftEyeOpen < 0.4f && rightEyeOpen < 0.4f
 
         val now = System.currentTimeMillis()
         var isSingleBlink = false
