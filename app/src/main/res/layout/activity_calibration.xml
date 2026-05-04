@@ -5,7 +5,6 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <!-- Dark overlay instructions -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -46,6 +45,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
+
             <Button
                 android:id="@+id/btnSkip"
                 android:layout_width="0dp"
@@ -54,6 +54,7 @@
                 android:text="Skip"
                 android:backgroundTint="#333333"
                 android:layout_marginEnd="8dp" />
+
             <Button
                 android:id="@+id/btnNext"
                 android:layout_width="0dp"
@@ -64,7 +65,6 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Calibration dot -->
     <ImageView
         android:id="@+id/calibrationDot"
         android:layout_width="80dp"
