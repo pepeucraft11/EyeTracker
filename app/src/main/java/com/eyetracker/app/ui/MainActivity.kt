@@ -32,28 +32,39 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnStartStop: Button
     private lateinit var cameraPreview: PreviewView
 
+    // Configurações
+    private var sensitivity = 1.0f
+    private var smoothing = 0.35f
+    private var blinkThreshold = 0.4f
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val scroll = android.widget.ScrollView(this).apply {
+        // Carrega configurações salvas
+        val prefs = getSharedPreferences("eye_tracker", MODE_PRIVATE)
+        sensitivity = prefs.getFloat("sensitivity", 1.0f)
+        smoothing = prefs.getFloat("smoothing", 0.35f)
+        blinkThreshold = prefs.getFloat("blink_threshold", 0.4f)
+
+        val scroll = ScrollView(this).apply {
             setBackgroundColor(0xFF0A0E1A.toInt())
         }
-        val root = android.widget.FrameLayout(this)
-        scroll.addView(root, android.widget.FrameLayout.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+        val root = FrameLayout(this)
+        scroll.addView(root, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
         ))
 
         cameraPreview = PreviewView(this)
-        root.addView(cameraPreview, android.widget.FrameLayout.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT, 600
+        root.addView(cameraPreview, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, 600
         ))
 
         gazeOverlay = GazeOverlayView(this)
         gazeOverlay.visibility = View.GONE
-        root.addView(gazeOverlay, android.widget.FrameLayout.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+        root.addView(gazeOverlay, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
         ))
 
         val controls = LinearLayout(this).apply {
@@ -61,11 +72,12 @@ class MainActivity : AppCompatActivity() {
             setPadding(40, 620, 40, 40)
         }
 
+        // Status
         tvStatus = TextView(this).apply {
             text = "Iniciando..."
             textSize = 15f
             setTextColor(0xFFB0BEC5.toInt())
-            setPadding(0, 0, 0, 8)
+            setPadding(0, 0, 0, 4)
         }
         controls.addView(tvStatus)
 
@@ -85,17 +97,18 @@ class MainActivity : AppCompatActivity() {
         }
         controls.addView(tvBlink)
 
+        // Botão tracking
         btnStartStop = Button(this).apply {
             text = "▶ Iniciar Tracking"
             setBackgroundColor(0xFF1565C0.toInt())
             setTextColor(0xFFFFFFFF.toInt())
-            setPadding(0, 0, 0, 8)
             setOnClickListener { if (isTracking) stopTracking() else startTracking() }
         }
         controls.addView(btnStartStop, LinearLayout.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT, 130
+            LinearLayout.LayoutParams.MATCH_PARENT, 130
         ).apply { bottomMargin = 16 })
 
+        // Botão overlay
         val btnOverlay = Button(this).apply {
             text = "👁 Ativar Overlay Global"
             setBackgroundColor(0xFF1A0D37.toInt())
@@ -103,9 +116,10 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener { toggleOverlay() }
         }
         controls.addView(btnOverlay, LinearLayout.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT, 120
+            LinearLayout.LayoutParams.MATCH_PARENT, 120
         ).apply { bottomMargin = 16 })
 
+        // Botão acessibilidade
         val btnAccessibility = Button(this).apply {
             text = "♿ Ativar Piscada = Clique"
             setBackgroundColor(0xFF1A3720.toInt())
@@ -113,21 +127,110 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener {
                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 Toast.makeText(this@MainActivity,
-                    "Ative 'Eye Tracker Click' na lista de acessibilidade",
+                    "Ative 'Eye Tracker Click' na lista",
                     Toast.LENGTH_LONG).show()
             }
         }
         controls.addView(btnAccessibility, LinearLayout.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT, 120
+            LinearLayout.LayoutParams.MATCH_PARENT, 120
+        ).apply { bottomMargin = 24 })
+
+        // ── SEÇÃO DE CALIBRAÇÃO ──
+        val tvConfigTitle = TextView(this).apply {
+            text = "⚙ Calibração"
+            textSize = 16f
+            setTextColor(0xFFFFFFFF.toInt())
+            setPadding(0, 0, 0, 12)
+        }
+        controls.addView(tvConfigTitle)
+
+        // Sensibilidade do cursor
+        val tvSensLabel = TextView(this).apply {
+            text = "Sensibilidade do cursor: ${"%.1f".format(sensitivity)}x"
+            textSize = 13f
+            setTextColor(0xFFB0BEC5.toInt())
+        }
+        controls.addView(tvSensLabel)
+
+        val seekSensitivity = SeekBar(this).apply {
+            max = 30
+            progress = ((sensitivity - 0.5f) * 20).toInt().coerceIn(0, 30)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, p: Int, user: Boolean) {
+                    sensitivity = 0.5f + p / 20f
+                    tvSensLabel.text = "Sensibilidade do cursor: ${"%.1f".format(sensitivity)}x"
+                    analyzer?.sensitivityX = sensitivity
+                    analyzer?.sensitivityY = sensitivity
+                    prefs.edit().putFloat("sensitivity", sensitivity).apply()
+                }
+                override fun onStartTrackingTouch(sb: SeekBar) {}
+                override fun onStopTrackingTouch(sb: SeekBar) {}
+            })
+        }
+        controls.addView(seekSensitivity, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { bottomMargin = 16 })
 
-        val instrucoes = TextView(this).apply {
-            text = "Como usar piscada como clique:\n1. Toque em 'Ativar Piscada = Clique'\n2. Ative 'Eye Tracker Click' nas configurações\n3. Ative o Overlay Global\n4. Use o olhar para mirar e pisque para clicar!"
-            textSize = 12f
-            setTextColor(0xFF78909C.toInt())
+        // Suavização do cursor
+        val tvSmoothLabel = TextView(this).apply {
+            text = "Suavização (velocidade): ${"%.2f".format(smoothing)}"
+            textSize = 13f
+            setTextColor(0xFFB0BEC5.toInt())
+        }
+        controls.addView(tvSmoothLabel)
+
+        val seekSmoothing = SeekBar(this).apply {
+            max = 19
+            progress = ((smoothing - 0.05f) * 20).toInt().coerceIn(0, 19)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, p: Int, user: Boolean) {
+                    smoothing = 0.05f + p / 20f
+                    tvSmoothLabel.text = "Suavização (velocidade): ${"%.2f".format(smoothing)}"
+                    analyzer?.smoothingAlphaPublic = smoothing
+                    prefs.edit().putFloat("smoothing", smoothing).apply()
+                }
+                override fun onStartTrackingTouch(sb: SeekBar) {}
+                override fun onStopTrackingTouch(sb: SeekBar) {}
+            })
+        }
+        controls.addView(seekSmoothing, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { bottomMargin = 16 })
+
+        // Sensibilidade de piscada
+        val tvBlinkLabel = TextView(this).apply {
+            text = "Sensibilidade de piscada: ${"%.2f".format(blinkThreshold)}"
+            textSize = 13f
+            setTextColor(0xFFB0BEC5.toInt())
+        }
+        controls.addView(tvBlinkLabel)
+
+        val seekBlink = SeekBar(this).apply {
+            max = 20
+            progress = ((blinkThreshold - 0.1f) * 20).toInt().coerceIn(0, 20)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, p: Int, user: Boolean) {
+                    blinkThreshold = 0.1f + p / 20f
+                    tvBlinkLabel.text = "Sensibilidade de piscada: ${"%.2f".format(blinkThreshold)}"
+                    analyzer?.blinkThreshold = blinkThreshold
+                    prefs.edit().putFloat("blink_threshold", blinkThreshold).apply()
+                }
+                override fun onStartTrackingTouch(sb: SeekBar) {}
+                override fun onStopTrackingTouch(sb: SeekBar) {}
+            })
+        }
+        controls.addView(seekBlink, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { bottomMargin = 16 })
+
+        // Dica
+        val tvDica = TextView(this).apply {
+            text = "💡 Cursor lento? Aumente sensibilidade.\nCursor tremido? Aumente suavização.\nPiscada não detectada? Aumente sensibilidade de piscada."
+            textSize = 11f
+            setTextColor(0xFF546E7A.toInt())
             setPadding(8, 8, 8, 8)
         }
-        controls.addView(instrucoes)
+        controls.addView(tvDica)
 
         root.addView(controls)
         setContentView(scroll)
@@ -152,13 +255,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startCamera() {
+        val prefs = getSharedPreferences("eye_tracker", MODE_PRIVATE)
         val metrics = DisplayMetrics().also { windowManager.defaultDisplay.getMetrics(it) }
         analyzer = EyeTrackingAnalyzer(
             screenWidth = metrics.widthPixels,
             screenHeight = metrics.heightPixels,
             onGazeDetected = { data -> runOnUiThread { handleGaze(data) } },
             onNoFace = { runOnUiThread { tvStatus.text = "Nenhum rosto detectado" } }
-        )
+        ).apply {
+            sensitivityX = sensitivity
+            sensitivityY = sensitivity
+            smoothingAlphaPublic = smoothing
+            blinkThreshold = this@MainActivity.blinkThreshold
+            calibrationOffsetX = prefs.getFloat("calibration_offset_x", 0f)
+            calibrationOffsetY = prefs.getFloat("calibration_offset_y", 0f)
+        }
+
         ProcessCameraProvider.getInstance(this).addListener({
             val provider = ProcessCameraProvider.getInstance(this).get()
             val preview = Preview.Builder().build().also {
@@ -172,7 +284,7 @@ class MainActivity : AppCompatActivity() {
                 provider.bindToLifecycle(this, CameraSelector.DEFAULT_FRONT_CAMERA, preview, analysis)
                 tvStatus.text = "Câmera pronta"
             } catch (e: Exception) {
-                tvStatus.text = "Erro na câmera: ${e.message}"
+                tvStatus.text = "Erro: ${e.message}"
             }
         }, ContextCompat.getMainExecutor(this))
     }
@@ -181,8 +293,8 @@ class MainActivity : AppCompatActivity() {
         if (isTracking) gazeOverlay.gazeData = data
         tvGaze.text = "Gaze: ${"%.2f".format(data.gazePoint.x)}, ${"%.2f".format(data.gazePoint.y)}"
         tvStatus.text = if (data.isBlinking) "👁 PISCANDO..." else "✅ Rastreando"
-        tvBlink.text = if (data.isSingleBlink) "👆 CLIQUE!" else ""
         if (data.isSingleBlink) {
+            tvBlink.text = "👆 CLIQUE!"
             android.os.Handler(mainLooper).postDelayed({ tvBlink.text = "" }, 500)
         }
     }
