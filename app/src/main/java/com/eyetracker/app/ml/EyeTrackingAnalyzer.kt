@@ -43,10 +43,20 @@ class EyeTrackingAnalyzer(
             .build()
     )
 
+    // Calibração
     var calibrationOffsetX: Float = 0f
     var calibrationOffsetY: Float = 0f
 
-    private val smoothingAlpha = 0.35f
+    // Sensibilidade (1.0 = padrão, >1 = mais sensível)
+    var sensitivityX: Float = 1.0f
+    var sensitivityY: Float = 1.0f
+
+    // Suavização (0.05 = muito suave/lento, 1.0 = sem suavização/rápido)
+    var smoothingAlphaPublic: Float = 0.35f
+
+    // Threshold de piscada (0.1 = muito sensível, 0.6 = pouco sensível)
+    var blinkThreshold: Float = 0.4f
+
     private var smoothedX = 0.5f
     private var smoothedY = 0.5f
     private var isFirstFrame = true
@@ -73,7 +83,7 @@ class EyeTrackingAnalyzer(
     private fun processFace(face: Face, imageWidth: Float, imageHeight: Float) {
         val leftEyeOpen = face.leftEyeOpenProbability ?: 1f
         val rightEyeOpen = face.rightEyeOpenProbability ?: 1f
-        val isBlinking = leftEyeOpen < 0.4f && rightEyeOpen < 0.4f
+        val isBlinking = leftEyeOpen < blinkThreshold && rightEyeOpen < blinkThreshold
 
         val now = System.currentTimeMillis()
         var isSingleBlink = false
@@ -91,15 +101,17 @@ class EyeTrackingAnalyzer(
 
         val eulerX = face.headEulerAngleX
         val eulerY = face.headEulerAngleY
-        val yawNorm = (-eulerY / 45f).coerceIn(-1f, 1f)
+        val yawNorm   = (-eulerY / 45f).coerceIn(-1f, 1f)
         val pitchNorm = (-eulerX / 30f).coerceIn(-1f, 1f)
-        var rawX = (0.5f + yawNorm * 0.5f + calibrationOffsetX).coerceIn(0f, 1f)
-        var rawY = (0.5f + pitchNorm * 0.5f + calibrationOffsetY).coerceIn(0f, 1f)
 
-        if (isFirstFrame) { smoothedX = rawX; smoothedY = rawY; isFirstFrame = false }
-        else {
-            smoothedX = smoothingAlpha * rawX + (1f - smoothingAlpha) * smoothedX
-            smoothedY = smoothingAlpha * rawY + (1f - smoothingAlpha) * smoothedY
+        var rawX = (0.5f + yawNorm * 0.5f * sensitivityX + calibrationOffsetX).coerceIn(0f, 1f)
+        var rawY = (0.5f + pitchNorm * 0.5f * sensitivityY + calibrationOffsetY).coerceIn(0f, 1f)
+
+        if (isFirstFrame) {
+            smoothedX = rawX; smoothedY = rawY; isFirstFrame = false
+        } else {
+            smoothedX = smoothingAlphaPublic * rawX + (1f - smoothingAlphaPublic) * smoothedX
+            smoothedY = smoothingAlphaPublic * rawY + (1f - smoothingAlphaPublic) * smoothedY
         }
 
         val leftPupil = face.getLandmark(FaceLandmark.LEFT_EYE)?.position?.let {
@@ -119,18 +131,18 @@ class EyeTrackingAnalyzer(
                          (1f - abs(eulerY) / 45f).coerceIn(0f, 1f)
 
         onGazeDetected(GazeData(
-            gazePoint = PointF(smoothedX, smoothedY),
-            leftEyeOpenProb = leftEyeOpen,
+            gazePoint        = PointF(smoothedX, smoothedY),
+            leftEyeOpenProb  = leftEyeOpen,
             rightEyeOpenProb = rightEyeOpen,
-            headEulerX = eulerX,
-            headEulerY = eulerY,
-            headEulerZ = face.headEulerAngleZ,
-            leftPupil = leftPupil,
-            rightPupil = rightPupil,
-            faceBounds = faceBounds,
-            isBlinking = isBlinking,
-            isSingleBlink = isSingleBlink,
-            confidence = confidence
+            headEulerX       = eulerX,
+            headEulerY       = eulerY,
+            headEulerZ       = face.headEulerAngleZ,
+            leftPupil        = leftPupil,
+            rightPupil       = rightPupil,
+            faceBounds       = faceBounds,
+            isBlinking       = isBlinking,
+            isSingleBlink    = isSingleBlink,
+            confidence       = confidence
         ))
     }
 
