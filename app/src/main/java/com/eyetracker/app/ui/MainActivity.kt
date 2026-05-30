@@ -108,6 +108,17 @@ class MainActivity : AppCompatActivity() {
             LinearLayout.LayoutParams.MATCH_PARENT, 130
         ).apply { bottomMargin = 16 })
 
+        // Botão calibração automática
+        val btnAutoCalib = Button(this).apply {
+            text = "🎯 Calibração Automática (4 pontos)"
+            setBackgroundColor(0xFF0D3720.toInt())
+            setTextColor(0xFFFFFFFF.toInt())
+            setOnClickListener { startActivity(Intent(this@MainActivity, AutoCalibrationActivity::class.java)) }
+        }
+        controls.addView(btnAutoCalib, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 120
+        ).apply { bottomMargin = 16 })
+
         // Botão overlay
         val btnOverlay = Button(this).apply {
             text = "👁 Ativar Overlay Global"
