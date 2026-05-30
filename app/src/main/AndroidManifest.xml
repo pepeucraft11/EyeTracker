@@ -24,6 +24,7 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".ui.BlinkCalibrationActivity" android:exported="false" />
         <activity android:name=".ui.AutoCalibrationActivity" android:exported="false" />
         <activity android:name=".ui.CalibrationActivity" android:exported="false" />
         <activity android:name=".ui.DemoActivity" android:exported="false" />
